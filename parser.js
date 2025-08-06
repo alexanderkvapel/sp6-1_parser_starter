@@ -4,8 +4,8 @@
  * @returns {string} Значение свойства content
  */
 function parseMetaContent(name) {
-    const element = document.querySelector(`meta[name=${name}]`);
-    return element.getAttribute('content');
+    const metaElement = document.querySelector(`meta[name=${name}]`);
+    return metaElement.getAttribute('content');
 }
 
 /**
@@ -18,7 +18,8 @@ function parseOpengraph() {
     const og = {};
     
     ogElements.forEach(element => {
-        const key = element.getAttribute('property').slice(3);
+        const key = element.getAttribute('property')
+                           .slice(3);
         const value = element.getAttribute('content');
 
         // Если парсим og:title, то парсим только название сайта
@@ -89,16 +90,24 @@ function parseProductImages() {
  * @returns {number} Цена из карточке товара
  */
 function parseProductPrice(type='current') {
-    // innerText = {валюта}{новая_цена}\n <span>{валюта}{старая_цена}</span>
-    return +document.querySelector('.product .about .price').innerText.trim().split(' ')[type === 'current' ? 0 : 1].slice(1);
+    const fullPriceElement = document.querySelector('.product .about .price');
+    // fullPriceElement.innerText = {валюта}{новая_цена}\n <span>{валюта}{старая_цена}</span>
+    return +fullPriceElement.innerText
+                     .trim()
+                     .split(' ')[type === 'current' ? 0 : 1]
+                     .slice(1);
 }
 
 function parseProductDiscount(type='value') {
     const discountValue = +(parseProductPrice('old') - parseProductPrice()).toFixed(2);
-    // Если discountValue=0, то выводим 0 без дробной части
-    const discountPercent = discountValue === 0 ? 0 : (discountValue / (parseProductPrice('old') / 100)).toFixed(2);
 
-    return type === 'value' ? discountValue : `${discountPercent}%`;
+    if (type === 'value') {
+        return discountValue;
+    } else {
+        const discountPercent = discountValue === 0 ? 0 : (discountValue / (parseProductPrice('old') / 100)).toFixed(2);
+
+        return `${discountPercent}%`
+    }
 }
 
 
@@ -130,7 +139,14 @@ function parseProductProperties() {
     const properties = {};
 
     propertyElements.forEach(property => {
-        properties[property.firstElementChild.textContent.trim()] = property.lastElementChild.textContent.trim();
+        const key = property.firstElementChild
+                            .textContent
+                            .trim();
+        const value = property.lastElementChild
+                              .textContent
+                              .trim();
+
+        properties[key] = value;
     });
 
     return properties;
@@ -141,7 +157,9 @@ function parseProductProperties() {
  * @returns {string} Описание из карточки товара
  */
 function parseProductDescription() {
-    const description = document.querySelector('.product .description').innerHTML.trim();
+    const description = document.querySelector('.product .description')
+                                .innerHTML
+                                .trim();
 
     // Вырезаем свойства заголовка третьего уровня
     return description.slice(0, 3) + description.slice(18);
@@ -153,38 +171,52 @@ function parseProductDescription() {
  */
 function parseMeta() {
     return {
-        "language": document.querySelector('html').getAttribute('lang'),
+        language: document.querySelector('html')
+                          .getAttribute('lang'),
         // Парсим только название сайта
-        "title": document.querySelector('head title').textContent.split('—')[0].trim(),
-        "keywords": parseMetaContent('keywords').split(',').map(word => word.trim()),
-        "description": parseMetaContent('description'),
-        "opengraph": parseOpengraph()
+        title: document.querySelector('head title')
+                       .textContent
+                       .split('—')[0]
+                       .trim(),
+        keywords: parseMetaContent('keywords').split(',')
+                                              .map(word => word.trim()),
+        description: parseMetaContent('description'),
+        opengraph: parseOpengraph()
     }
 }
 
 /**
- * Спарсить данные карточки товара
+ * Спарсить данные карточки товара на странице
  * @returns {object} Объект из данных карточки товара
  */
 function parseProduct() {
     return {
-        "id": document.querySelector('.product').dataset.id,
-        "images": parseProductImages(),
-        "isLiked": document.querySelector('button.like').classList.contains('active'),
-        "name": document.querySelector('.product .about .title').textContent.trim(),
-        "tags": parseProductTags(),
-        "price": parseProductPrice(),
-        "oldPrice": parseProductPrice('old'),
-        "discount": parseProductDiscount(),
-        "discountPercent": parseProductDiscount('percent'),
-        "currency": parseCurrency(document.querySelector('.product .price').innerText.trim().slice(0, 1)),
-        "properties": parseProductProperties(),
-        "description": parseProductDescription()
+        id: document.querySelector('.product')
+                    .dataset
+                    .id,
+        images: parseProductImages(),
+        isLiked: document.querySelector('button.like')
+                         .classList
+                         .contains('active'),
+        name: document.querySelector('.product .about .title')
+                      .textContent
+                      .trim(),
+        tags: parseProductTags(),
+        price: parseProductPrice(),
+        oldPrice: parseProductPrice('old'),
+        discount: parseProductDiscount(),
+        discountPercent: parseProductDiscount('percent'),
+        currency: parseCurrency(document.querySelector('.product .price')
+                                        .innerText
+                                        .trim()
+                                        .slice(0, 1)),
+        properties: parseProductProperties(),
+        description: parseProductDescription()
     }
 }
 
 /**
- * Спарсить дополнительные товары
+ * Спарсить дополнительные товары на странице
  * @returns {object} Массив из дополнительных товаров
  */
 function parseSuggested() {
@@ -192,13 +224,24 @@ function parseSuggested() {
     const suggested = [];
 
     suggestElements.forEach(suggest => {
+        const image = suggest.querySelector('img');
+        const name = suggest.querySelector('h3');
+        const fullPrice = suggest.querySelector('b');
+        const description = suggest.querySelector('p');
+
         suggested.push(
             {
-                "image": suggest.querySelector('img').getAttribute('src'),
-                "name": suggest.querySelector('h3').textContent.trim(),
-                "price": suggest.querySelector('b').textContent.trim().slice(1),
-                "currency": parseCurrency(suggest.querySelector('b').textContent.trim().slice(0, 1)),
-                "description": suggest.querySelector('p').textContent.trim()
+                image: image.getAttribute('src'),
+                name: name.textContent
+                          .trim(),
+                price: fullPrice.textContent
+                                .trim()
+                                .slice(1),
+                currency: parseCurrency(fullPrice.textContent
+                                                 .trim()
+                                                 .slice(0, 1)),
+                description: description.textContent
+                                        .trim()
             }
         );
     });
@@ -207,7 +250,7 @@ function parseSuggested() {
 }
 
 /**
- * Спарсить обзоры
+ * Спарсить обзоры на странице
  * @returns {object} Массив из обзоров
  */
 function parseReviews() {
@@ -215,17 +258,32 @@ function parseReviews() {
     const reviews = [];
 
     reviewElements.forEach(review => {
+        const rating = review.querySelector('.rating');
+        const author = review.querySelector('.author');
+        const title = review.querySelector('.title');
+
         reviews.push(
             {
                 // Считаем кол-во звезд с классом filled
-                "rating": review.querySelectorAll('.rating .filled').length,
-                "author": {
-                    "avatar": review.querySelector('.author img').getAttribute('src'),
-                    "name": review.querySelector('.author span').textContent.trim()
+                rating: rating.querySelectorAll('.filled')
+                              .length,
+                author: {
+                    avatar: author.querySelector('img')
+                                  .getAttribute('src'),
+                    name: author.querySelector('span')
+                                .textContent
+                                .trim()
                 },
-                "title": review.querySelector('.title').textContent.trim(),
-                "description": review.querySelector('.title').nextElementSibling.textContent.trim(),
-                "date": review.querySelector('.author i').textContent.trim().split('/').join('.')
+                title: title.textContent
+                            .trim(),
+                description: title.nextElementSibling
+                                  .textContent
+                                  .trim(),
+                date: author.querySelector('i')
+                            .textContent
+                            .trim()
+                            .split('/')
+                            .join('.')
             }
         );
     });
